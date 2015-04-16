@@ -1,22 +1,29 @@
-FROM debian:wheezy
+FROM phusion/baseimage:latest
 
-MAINTAINER NGINX Docker Maintainers "docker-maint@nginx.com"
+ENV HOME /root
 
-RUN apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62
-RUN echo "deb http://nginx.org/packages/mainline/debian/ wheezy nginx" >> /etc/apt/sources.list
+RUN /etc/my_init.d/00_regen_ssh_host_keys.sh
 
-ENV NGINX_VERSION 1.7.12-1~wheezy
+CMD ["/sbin/my_init"]
 
-RUN apt-get update && \
-    apt-get install -y ca-certificates nginx=${NGINX_VERSION} && \
-    rm -rf /var/lib/apt/lists/* 
+# Nginx-PHP Installation
+RUN apt-get update
+RUN apt-get install -y vim curl wget build-essential python-software-properties
+RUN add-apt-repository -y ppa:nginx/stable
+RUN apt-get update
 
-# forward request and error logs to docker log collector
-RUN ln -sf /dev/stdout /var/log/nginx/access.log
-RUN ln -sf /dev/stderr /var/log/nginx/error.log
+RUN apt-get install -y nginx
+
+RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 
 VOLUME ["/etc/nginx/sites-enabled", "/etc/nginx/certs", "/etc/nginx/conf.d", "/var/log/nginx", "/var/www/html"]
+ 
+RUN mkdir           /etc/service/nginx
+ADD build/nginx.sh  /etc/service/nginx/run
+RUN chmod +x        /etc/service/nginx/run
 
-EXPOSE 80 443
+EXPOSE 80
+EXPOSE 443
+# End Nginx-PHP
 
-CMD ["nginx", "-g", "daemon off;"]
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
